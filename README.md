@@ -1,9 +1,15 @@
 # Information
 
+![alt text](https://i.imgur.com/5eDRc05.gif)
+
 A MusicBee plugin that replaces the built-in Track & Artist panel with one where
-individual artists, genres and the album are clickable, plus a few things the native
-panel doesn't offer (an editable rating, per-selection multi-track display, more
-flexible row templates).
+individual artists, genres, album name and other tags are clickable. Clicking attempts
+to browse to the relevant item in the thumbnail browser. Ctrl+click opens a new tab
+with a filter, like the native MusicBee track info panel does.
+
+NB: This was only tested with MusicBee 3.7.9744! The plugin relies on brittle
+and undocumented connections to the MusicBee API, there is no guarantee it will work
+on any other version.
 
 ## Setup
 
@@ -20,8 +26,7 @@ flexible row templates).
 
 - Shows up to 7 configurable text rows built from MusicBee-style `<Tag>` placeholders
   (e.g. `by <Artist>`, `on <Album>`), using MusicBee's own display field names (e.g.
-  `<Title>`, `<Album Artist>`, `<Full Year>`) - the API's enum names (`<TrackTitle>`,
-  `<AlbumArtist>`, ...) work too as a fallback. Empty rows are hidden. A row can also
+  `<Title>`, `<Album Artist>`, `<Year>`). Empty rows are hidden. A row can also
   use file-property placeholders that aren't taggable fields: `<Type>`, `<Sample
   Rate>`, `<Bitrate>`, `<Bit Depth>`, `<Channels>`, `<Duration>`/`<Time>`, `<Size>`,
   `<Date Added>`, `<Date Modified>`, `<Last Played>`, `<Play Count>`, `<Skip Count>`.
@@ -68,9 +73,3 @@ flexible row templates).
   logs why to `Information\error.log` in MusicBee's data folder.
 - There's no documented way to share settings or state with MusicBee's native Track &
   Artist panel - this plugin keeps its own separate configuration.
-- Row templates need MusicBee's own display field names (e.g. `Full Year`, not
-  `Year`); an unrecognized `<Tag>` is left as-is in the row so a typo is easy to spot.
-- The `<Type>` placeholder can come back empty for some formats (seen on FLAC files);
-  it then falls back to the file extension.
-- Only display and rating editing are covered here. Building filter rules (numeric
-  ranges, AND/OR conditions, ...) is the Filter Panel plugin's job, not this one's.
