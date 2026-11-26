@@ -60,6 +60,7 @@ namespace MusicBeePlugin
         private readonly SegmentedLabel propertiesRow;
         private readonly Font propertiesFont;
         private readonly RatingControl ratingControl;
+        private readonly LoveControl loveControl;
         private readonly Label emptyLabel;
         private ContextMenuStrip _fallbackArtworkMenu;
 
@@ -125,6 +126,10 @@ namespace MusicBeePlugin
             ratingControl = new RatingControl();
             ratingControl.RatingChanged += OnRatingChanged;
             Controls.Add(ratingControl);
+
+            loveControl = new LoveControl();
+            // loveControl.LoveChanged += OnLoveChanged;
+            Controls.Add(loveControl);
 
             emptyLabel = new Label
             {
@@ -290,11 +295,16 @@ namespace MusicBeePlugin
                     if (!double.TryParse(ratingRaw, NumberStyles.Float, CultureInfo.CurrentCulture, out double ratingValue))
                         double.TryParse(ratingRaw, NumberStyles.Float, CultureInfo.InvariantCulture, out ratingValue);
                     ratingControl.Rating = Math.Max(0, Math.Min(5, ratingValue));
+                    string loveRaw = GetTag(MetaDataType.RatingLove);
+                    
+                    loveControl.Loved = loveRaw == "L";
+                    loveControl.Banned = loveRaw == "B";
                 }
                 else
                 {
                     ratingControl.Visible = false;
                 }
+                loveControl.Visible = ratingControl.Visible;
 
                 if (PanelSettings.ArtworkPosition != ArtworkPosition.None && SelectionSharesAlbum())
                 {
@@ -636,12 +646,13 @@ namespace MusicBeePlugin
             string value = GetTag(field);
             if (string.IsNullOrEmpty(value)) return;
 
-            // Like the native panel: title is bold, and not a filter link.
-            if (field == MetaDataType.TrackTitle)
+            // Like the native panel: title and track number are bold, not filter links.
+            if (field == MetaDataType.TrackTitle ||
+                field == MetaDataType.TrackNo)
             {
-                var title = TrackInfoSegment.Static(value, dim: false);
-                title.Bold = true;
-                segments.Add(title);
+                var segment = TrackInfoSegment.Static(value, dim: false);
+                segment.Bold = true;
+                segments.Add(segment);
                 return;
             }
 
@@ -858,6 +869,29 @@ namespace MusicBeePlugin
                 Logger.Error("Error setting rating", ex);
             }
         }
+
+        /* private void OnLoveChanged(bool loved)
+        {
+            try
+            {
+                foreach (string file in _files)
+                {
+                    mbApi.Library_SetFileTag(
+                        file,
+                        MetaDataType.RatingLove,
+                        loved ? "L" : "");
+        
+                    mbApi.Library_CommitTagsToFile(file);
+                }
+        
+                mbApi.MB_RefreshPanels();
+                RequestRefresh();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Error updating Loved status", ex);
+            }
+        } */
 
         // ViewShowFullSizeArtwork reads the command dispatcher's third parameter -
         // an IList<Track> - and does tracks[0], so MusicBeeCommandInvoker resolves
@@ -1199,9 +1233,22 @@ namespace MusicBeePlugin
             if (ratingControl.Visible)
             {
                 y += Dpi(3);
-                // native stars start 2px left of the text column
-                ratingControl.Bounds = new Rectangle(new Point(textArea.Left - Dpi(2), y), ratingControl.PreferredStripSize);
+            
+                // Native stars start 2px left of the text column
+                ratingControl.Bounds = new Rectangle(
+                    new Point(textArea.Left - Dpi(2), y),
+                    ratingControl.PreferredStripSize);
+            
                 y += ratingControl.Height + Dpi(4);
+            }
+            
+            if (loveControl.Visible)
+            {
+                loveControl.Bounds = new Rectangle(
+                    ratingControl.Right + Dpi(4),
+                    ratingControl.Top - Dpi(3),
+                    Dpi(18),
+                    Dpi(18));
             }
 
             if (propertiesRow.Visible)
