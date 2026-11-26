@@ -263,10 +263,11 @@ namespace MusicBeePlugin
                 string[] genres = IsMultiSelection
                     ? CommonValues(file => SplitList(mbApi.Library_GetFileTag(file, MetaDataType.Genre)))
                     : SplitList(GetTag(MetaDataType.Genre));
+                string[] playlists = GetPlaylists();
 
                 for (int i = 0; i < rows.Length; i++)
                 {
-                    var segments = ParseTemplate(PanelSettings.Rows[i], artists, genres, album, albumArtist);
+                    var segments = ParseTemplate(PanelSettings.Rows[i], artists, genres, playlists, album, albumArtist);
                     rows[i].Segments = segments;
                     rows[i].Visible = segments.Any(s => !string.IsNullOrWhiteSpace(s.Text));
                 }
@@ -469,6 +470,57 @@ namespace MusicBeePlugin
             return SplitArtists(GetTag(MetaDataType.MultiArtist), () => GetTag(MetaDataType.Artist));
         }
 
+        private string[] GetPlaylists()
+        {
+            var playlists = new List<string>();
+        
+            try
+            {
+                if (_files.Length == 0 || !mbApi.Playlist_QueryPlaylists())
+                    return playlists.ToArray();
+        
+                string playlistUrl;
+        
+                while (!string.IsNullOrEmpty(playlistUrl = mbApi.Playlist_QueryGetNextPlaylist()))
+                {
+                    bool containsAllFiles = true;
+        
+                    foreach (string file in _files)
+                    {
+                        if (!mbApi.Playlist_IsInList(playlistUrl, file))
+                        {
+                            containsAllFiles = false;
+                            break;
+                        }
+                    }
+        
+                    if (!containsAllFiles)
+                        continue;
+        
+                    string name = mbApi.Playlist_GetName(playlistUrl);
+        
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        name = name.TrimEnd('/', '\\');
+                    
+                        int separator = Math.Max(name.LastIndexOf('/'), name.LastIndexOf('\\'));
+                    
+                        if (separator >= 0)
+                            name = name.Substring(separator + 1);
+                    
+                        if (name.Length > 0)
+                            playlists.Add(name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Error retrieving playlists", ex);
+            }
+        
+            return playlists.ToArray();
+        }
+
         // MultiArtist holds the individual artists separated by '\0'; without
         // it, fall back to the Artist tag split on ';'.
         private static string[] SplitArtists(string multiArtist, Func<string> artist)
@@ -514,7 +566,7 @@ namespace MusicBeePlugin
         // Splits a row template into literal-text and <Tag> segments (see
         // TryResolveTag for the recognized names). Unrecognized tags are left
         // as-is so a typo is visible rather than silently dropped.
-        private List<TrackInfoSegment> ParseTemplate(string template, string[] artists, string[] genres, string album, string albumArtist)
+        private List<TrackInfoSegment> ParseTemplate(string template, string[] artists, string[] genres, string[] playlists, string album, string albumArtist)
         {
             var segments = new List<TrackInfoSegment>();
             if (string.IsNullOrEmpty(template)) return segments;
@@ -525,7 +577,7 @@ namespace MusicBeePlugin
                 if (m.Index > last)
                     segments.Add(TrackInfoSegment.Static(template.Substring(last, m.Index - last)));
 
-                AppendTagSegments(segments, m.Groups[1].Value.Trim(), artists, genres, album, albumArtist);
+                AppendTagSegments(segments, m.Groups[1].Value.Trim(), artists, genres, playlists, album, albumArtist);
 
                 last = m.Index + m.Length;
             }
@@ -536,8 +588,14 @@ namespace MusicBeePlugin
             return segments;
         }
 
-        private void AppendTagSegments(List<TrackInfoSegment> segments, string tagName, string[] artists, string[] genres, string album, string albumArtist)
+        private void AppendTagSegments(List<TrackInfoSegment> segments, string tagName, string[] artists, string[] genres, string[] playlists, string album, string albumArtist)
         {
+            if (string.Equals(tagName, "Playlist", StringComparison.OrdinalIgnoreCase))
+            {
+                AppendStaticMultiValue(segments, playlists);
+                return;
+            }
+
             if (PropertyTags.TryGetValue(tagName, out FilePropertyType property))
             {
                 // file properties aren't filterable tags, so they're plain text
@@ -731,6 +789,17 @@ namespace MusicBeePlugin
                 var segment = TrackInfoSegment.Filter(values[i], field, values[i]);
                 segment.WrapBefore = wrap && i > 0;
                 segments.Add(segment);
+            }
+        }
+
+        private static void AppendStaticMultiValue(List<TrackInfoSegment> segments, string[] values)
+        {
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (i > 0)
+                    segments.Add(TrackInfoSegment.Static("; "));
+        
+                segments.Add(TrackInfoSegment.Static(values[i], dim: false));
             }
         }
 
