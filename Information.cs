@@ -556,7 +556,7 @@ namespace MusicBeePlugin
             switch (field)
             {
                 case MetaDataType.Artist:
-                    AppendMultiValue(segments, artists, MetaDataType.Artist);
+                    AppendMultiValue(segments, artists, MetaDataType.MultiArtist);
                     return;
 
                 case MetaDataType.Genre:
