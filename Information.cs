@@ -483,6 +483,9 @@ namespace MusicBeePlugin
         
                 while (!string.IsNullOrEmpty(playlistUrl = mbApi.Playlist_QueryGetNextPlaylist()))
                 {
+                    if (mbApi.Playlist_GetType(playlistUrl) == PlaylistFormat.Auto)
+                        continue;
+                    
                     bool containsAllFiles = true;
         
                     foreach (string file in _files)
@@ -784,7 +787,7 @@ namespace MusicBeePlugin
             for (int i = 0; i < values.Length; i++)
             {
                 if (i > 0)
-                    segments.Add(TrackInfoSegment.Static("; "));
+                    segments.Add(TrackInfoSegment.Static(" • "));
 
                 var segment = TrackInfoSegment.Filter(values[i], field, values[i]);
                 segment.WrapBefore = wrap && i > 0;
@@ -797,7 +800,7 @@ namespace MusicBeePlugin
             for (int i = 0; i < values.Length; i++)
             {
                 if (i > 0)
-                    segments.Add(TrackInfoSegment.Static("; "));
+                    segments.Add(TrackInfoSegment.Static(" • "));
         
                 segments.Add(TrackInfoSegment.Static(values[i], dim: false));
             }
